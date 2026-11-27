@@ -34,6 +34,7 @@
 </style>
 </head>
 <body>
+<div id="editable-root">
 <header>
   <div class="t">🎄 이웃과 함께하는 <span>성탄축제</span></div>
   <div class="s">용인특례시기독교총연합회 · 아가페문화원 · 진행계획안</div>
@@ -71,10 +72,141 @@
   <span class="g">“우리 동네에, 성탄의 노래가 태어납니다”</span><br>
   제작 · goodseed AI연구소
 </footer>
+</div><!-- /editable-root -->
 <button id="top" onclick="scrollTo({top:0,behavior:'smooth'})">↑</button>
 <script>
  var b=document.getElementById('top');
  addEventListener('scroll',function(){ b.style.display = scrollY>600?'block':'none'; });
 </script>
+<!-- ===================== 문구 편집 모드 (암호 보호) ===================== -->
+<style>
+ #ed-fab{position:fixed;left:18px;bottom:18px;z-index:9000;background:#0b3d2e;color:#fff;border:2px solid #d4af37;
+   border-radius:999px;padding:11px 18px;font:700 14px/1 'Malgun Gothic',sans-serif;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+ #ed-fab:hover{background:#145a43}
+ #ed-mask{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9100;display:none;align-items:center;justify-content:center}
+ #ed-modal{background:#fff;border-radius:16px;padding:26px 24px;width:320px;text-align:center;font-family:'Malgun Gothic',sans-serif;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+ #ed-modal h4{color:#0b3d2e;font-size:18px;margin:0 0 6px}
+ #ed-modal p{color:#6b7280;font-size:13px;margin:0 0 14px}
+ #ed-pw{width:100%;padding:12px;border:1px solid #ccc;border-radius:10px;font-size:16px;text-align:center;letter-spacing:3px}
+ #ed-modal .row{display:flex;gap:8px;margin-top:14px}
+ #ed-modal button{flex:1;padding:11px;border:0;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer}
+ #ed-ok{background:#0b3d2e;color:#fff}#ed-cancel{background:#eee;color:#333}
+ #ed-err{color:#c0392b;font-size:12.5px;height:16px;margin-top:8px}
+ #ed-bar{position:fixed;left:0;right:0;bottom:0;z-index:9000;background:#0b3d2e;color:#fff;display:none;
+   align-items:center;gap:10px;padding:10px 16px;font-family:'Malgun Gothic',sans-serif;box-shadow:0 -6px 20px rgba(0,0,0,.2);flex-wrap:wrap}
+ #ed-bar .hint{font-size:13px;color:#cfe0d8;flex:1;min-width:180px}
+ #ed-bar button{background:#ffffff1a;color:#fff;border:1px solid #ffffff44;border-radius:9px;padding:9px 14px;font-weight:700;font-size:13.5px;cursor:pointer}
+ #ed-bar button.prim{background:#d4af37;color:#3a2a00;border-color:#d4af37}
+ #ed-bar button:hover{filter:brightness(1.08)}
+ [contenteditable="true"].ed-on{outline:2px dashed #d4af37;outline-offset:3px;background:rgba(212,175,55,.08);border-radius:4px;cursor:text}
+ #ed-toast{position:fixed;left:50%;bottom:70px;transform:translateX(-50%);z-index:9200;background:#222;color:#fff;
+   padding:10px 18px;border-radius:999px;font:600 13.5px 'Malgun Gothic',sans-serif;opacity:0;transition:.25s;pointer-events:none}
+ #ed-toast.show{opacity:1}
+</style>
+
+<button id="ed-fab" title="문구 편집">✏️ 편집</button>
+<div id="ed-mask"><div id="ed-modal">
+  <h4>🔒 문구 편집</h4>
+  <p>편집하려면 암호를 입력하세요</p>
+  <input id="ed-pw" type="password" inputmode="numeric" maxlength="16" placeholder="••••••">
+  <div id="ed-err"></div>
+  <div class="row"><button id="ed-cancel">취소</button><button id="ed-ok">확인</button></div>
+</div></div>
+<div id="ed-bar">
+  <span class="hint">✏️ 편집 모드 — 글자를 눌러 고치고 <b>💾 저장</b> → <b>⤓ 내보내기</b>로 최종본(index.html)을 받아 배포하세요. (슬라이드 이미지는 편집 대상 아님)</span>
+  <button id="ed-save" class="prim">💾 저장</button>
+  <button id="ed-export">⤓ 수정본 내보내기(HTML)</button>
+  <button id="ed-reset">↩ 되돌리기</button>
+  <button id="ed-exit">✕ 종료</button>
+</div>
+<div id="ed-toast"></div>
+
+<script>
+(function(){
+  var PW = "39271189";
+  var KEY = "ycf_ppt_edits_v1";
+  var MKEY = "ycf_ppt_updated_v1";
+  var SEL = ['.t','.s','.intro','.tip','footer'].map(function(s){return '#editable-root '+s;}).join(',');
+  var editing=false;
+  var root=document.getElementById('editable-root');
+  if(!root) return;
+  var els=Array.prototype.slice.call(root.querySelectorAll(SEL))
+            .filter(function(el){ return !el.hasAttribute('data-noedit') && !el.closest('[data-noedit]'); });
+  els.forEach(function(el,i){ el.setAttribute('data-ek','e'+i); });
+
+  function fmtNow(){ var d=new Date(); function p(n){return (n<10?'0':'')+n;}
+    return d.getFullYear()+'. '+p(d.getMonth()+1)+'. '+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes()); }
+  (function showUpdated(){ var v=localStorage.getItem(MKEY); var el=document.getElementById('ed-updated'); if(v&&el) el.textContent=v; })();
+
+  function toast(msg){ var t=document.getElementById('ed-toast'); t.textContent=msg; t.classList.add('show');
+    clearTimeout(t._t); t._t=setTimeout(function(){t.classList.remove('show');},1800); }
+
+  function applySaved(){
+    try{ var saved=JSON.parse(localStorage.getItem(KEY)||'{}');
+      els.forEach(function(el){ var k=el.getAttribute('data-ek'); if(saved[k]!=null) el.innerHTML=saved[k]; });
+    }catch(e){}
+  }
+  applySaved();
+
+  function enter(){
+    editing=true; els.forEach(function(el){ el.setAttribute('contenteditable','true'); el.classList.add('ed-on'); });
+    document.getElementById('ed-bar').style.display='flex';
+    document.getElementById('ed-fab').style.display='none';
+  }
+  function exit(){
+    editing=false; els.forEach(function(el){ el.removeAttribute('contenteditable'); el.classList.remove('ed-on'); });
+    document.getElementById('ed-bar').style.display='none';
+    document.getElementById('ed-fab').style.display='block';
+  }
+  function save(){
+    var data={}; els.forEach(function(el){ data[el.getAttribute('data-ek')]=el.innerHTML; });
+    localStorage.setItem(KEY, JSON.stringify(data));
+    var now=fmtNow(); localStorage.setItem(MKEY, now);
+    var u=document.getElementById('ed-updated'); if(u) u.textContent=now;
+    toast('저장됨 · '+now);
+  }
+  function resetEdits(){
+    if(confirm('이 브라우저에 저장한 문구 수정을 모두 지우고 원래대로 되돌릴까요?')){
+      localStorage.removeItem(KEY); location.reload();
+    }
+  }
+  function exportHtml(){
+    save();
+    var clone=document.documentElement.cloneNode(true);
+    ['ed-fab','ed-mask','ed-bar','ed-toast'].forEach(function(id){ var n=clone.querySelector('#'+id); if(n) n.remove(); });
+    clone.querySelectorAll('[contenteditable]').forEach(function(n){ n.removeAttribute('contenteditable'); n.classList.remove('ed-on'); });
+    var html='<!DOCTYPE html>\n'+clone.outerHTML;
+    var b=new Blob([html],{type:'text/html;charset=utf-8'});
+    var u=URL.createObjectURL(b); var a=document.createElement('a');
+    a.href=u; a.download='index.html'; document.body.appendChild(a); a.click();
+    a.remove(); URL.revokeObjectURL(u);
+    toast('수정본 index.html 내려받음 — 재배포하면 모두에게 반영됩니다');
+  }
+
+  root.addEventListener('click', function(e){
+    if(!editing) return;
+    var a=e.target.closest('a,button'); if(a){ e.preventDefault(); }
+  }, true);
+
+  var mask=document.getElementById('ed-mask'), pw=document.getElementById('ed-pw'), err=document.getElementById('ed-err');
+  function openModal(){ err.textContent=''; pw.value=''; mask.style.display='flex'; setTimeout(function(){pw.focus();},50); }
+  function closeModal(){ mask.style.display='none'; }
+  function tryPw(){
+    if(pw.value===PW){ closeModal(); sessionStorage.setItem('ycf_ed_ok','1'); enter(); }
+    else{ err.textContent='암호가 올바르지 않습니다.'; pw.value=''; pw.focus(); }
+  }
+  document.getElementById('ed-fab').addEventListener('click', function(){
+    if(sessionStorage.getItem('ycf_ed_ok')==='1'){ enter(); } else { openModal(); }
+  });
+  document.getElementById('ed-ok').addEventListener('click', tryPw);
+  document.getElementById('ed-cancel').addEventListener('click', closeModal);
+  pw.addEventListener('keydown', function(e){ if(e.key==='Enter') tryPw(); });
+  document.getElementById('ed-save').addEventListener('click', save);
+  document.getElementById('ed-export').addEventListener('click', exportHtml);
+  document.getElementById('ed-reset').addEventListener('click', resetEdits);
+  document.getElementById('ed-exit').addEventListener('click', exit);
+})();
+</script>
+
 </body>
 </html>
