@@ -460,6 +460,23 @@
  #ed-toast.show{opacity:1}
 </style>
 
+<button id="ed-fab" title="문구 편집">✏️ 편집</button>
+<div id="ed-mask"><div id="ed-modal">
+  <h4>🔒 문구 편집</h4>
+  <p>편집하려면 암호를 입력하세요</p>
+  <input id="ed-pw" type="password" inputmode="numeric" maxlength="16" placeholder="••••••">
+  <div id="ed-err"></div>
+  <div class="row"><button id="ed-cancel">취소</button><button id="ed-ok">확인</button></div>
+</div></div>
+<div id="ed-bar">
+  <span class="hint">✏️ 편집 모드 — 글자를 눌러 고치고 <b>💾 저장</b> → <b>⤓ 내보내기</b>로 최종본(index.html)을 받아 배포하세요.</span>
+  <button id="ed-save" class="prim">💾 저장</button>
+  <button id="ed-export">⤓ 수정본 내보내기(HTML)</button>
+  <button id="ed-reset">↩ 되돌리기</button>
+  <button id="ed-exit">✕ 종료</button>
+</div>
+<div id="ed-toast"></div>
+
 
 
 
